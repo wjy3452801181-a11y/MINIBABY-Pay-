@@ -27,6 +27,8 @@ const RPC_URLS = [
 
 let _provider: ethers.JsonRpcProvider | null = null
 let _activeRpcIndex = 0
+// provider 健康检查结果缓存，30s TTL — 避免每次 getProviderAsync() 都打一次 eth_chainId
+let _providerHealthyUntil = 0
 
 /**
  * 创建 provider，优先使用当前活跃 RPC，失败自动切换下一个
@@ -80,15 +82,25 @@ async function isProviderFunctional(p: ethers.JsonRpcProvider): Promise<boolean>
 
 /**
  * 获取 provider 单例，懒初始化，首次失败时自动 failover
+ * 健康检查结果缓存 30s，避免每次调用都打 eth_chainId（每次 ~490ms）
  */
 export async function getProviderAsync(): Promise<ethers.JsonRpcProvider> {
+  const now = Date.now()
+  if (_provider && now < _providerHealthyUntil) {
+    return _provider  // 命中缓存，跳过健康检查
+  }
   if (_provider) {
     const ok = await isProviderFunctional(_provider)
-    if (ok) return _provider
+    if (ok) {
+      _providerHealthyUntil = now + 30_000  // 缓存 30s
+      return _provider
+    }
     console.warn('[RPC] 当前 provider 失联，尝试 failover...')
     _provider = null
+    _providerHealthyUntil = 0
   }
   _provider = await createProviderWithFailover()
+  _providerHealthyUntil = Date.now() + 30_000
   return _provider
 }
 
@@ -98,6 +110,7 @@ export async function getProviderAsync(): Promise<ethers.JsonRpcProvider> {
  */
 export function resetProvider() {
   _provider = null
+  _providerHealthyUntil = 0
 }
 
 /**

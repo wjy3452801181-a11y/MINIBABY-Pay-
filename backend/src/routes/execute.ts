@@ -8,6 +8,18 @@ import { record } from '../lib/metrics'
 
 export const executeRouter = Router()
 
+// demo 钱包余额缓存（5s TTL）— 避免 ConfirmCard 每次点击都打 eth_call
+const _balanceCache: Record<string, { balance: number; expiry: number }> = {}
+
+async function getCachedBalance(address: string): Promise<number> {
+  const now = Date.now()
+  const cached = _balanceCache[address.toLowerCase()]
+  if (cached && now < cached.expiry) return cached.balance
+  const balance = await getUsdcBalance(address)
+  _balanceCache[address.toLowerCase()] = { balance, expiry: now + 5_000 }
+  return balance
+}
+
 // POST /api/execute — 后端直接用私钥签名广播，返回 tx hash
 executeRouter.post('/', async (req: Request, res: Response) => {
   try {
@@ -32,11 +44,11 @@ executeRouter.post('/', async (req: Request, res: Response) => {
       return
     }
 
-    // 广播前检查 demo 钱包余额
+    // 广播前检查 demo 钱包余额（带 5s 缓存，ConfirmCard 重试时不重复打链）
     const demoAddress = new (await import('ethers')).ethers.Wallet(
       process.env.DEMO_PRIVATE_KEY!
     ).address
-    const balance = await getUsdcBalance(demoAddress)
+    const balance = await getCachedBalance(demoAddress)
     if (balance < amountUsdc) {
       res.status(402).json({
         error: 'INSUFFICIENT_BALANCE',

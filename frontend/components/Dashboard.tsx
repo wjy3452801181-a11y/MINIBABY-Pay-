@@ -125,13 +125,16 @@ export default function Dashboard({ walletAddress, refreshTrigger }: DashboardPr
           </button>
         </div>
 
-        {activeTab === 'history' ? (
+        {/* 三个 tab 同时保持 DOM，用 hidden 切换 — 避免 mount/unmount 重复 fetch，移动端无重排 */}
+        <div className={activeTab === 'history' ? '' : 'hidden'}>
           <HistoryList records={history} locale={locale} />
-        ) : activeTab === 'rules' ? (
+        </div>
+        <div className={activeTab === 'rules' ? '' : 'hidden'}>
           <RulesList rules={rules} onRun={fetchAll} locale={locale} />
-        ) : (
+        </div>
+        <div className={activeTab === 'monitor' ? '' : 'hidden'}>
           <MonitorTab />
-        )}
+        </div>
       </div>
     </div>
   )

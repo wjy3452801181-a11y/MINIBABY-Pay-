@@ -164,29 +164,36 @@ intentRouter.get('/stream/:streamId', (req: Request, res: Response) => {
 
   const queue = getEventQueue(streamId)
 
-  // 定时检查队列并发送事件
-  const interval = setInterval(() => {
-    while (queue.events.length > 0) {
-      const event = queue.events.shift()!
-      res.write(`data: ${JSON.stringify(event)}\n\n`)
-
-      // 完成或出错时关闭 SSE
-      if (event.type === 'complete' || event.type === 'error') {
-        clearInterval(interval)
-        cleanupQueue(streamId)
-        res.end()
-        return
-      }
+  // 把已积压的事件立即 flush（SSE 连接可能在事件产生之后才建立）
+  for (const event of queue.events.splice(0)) {
+    res.write(`data: ${JSON.stringify(event)}\n\n`)
+    if (event.type === 'complete' || event.type === 'error') {
+      cleanupQueue(streamId)
+      res.end()
+      return
     }
-  }, 100)
+  }
+
+  // 注册实时 writer：pushEvent 产生时立即写入，不依赖 setInterval
+  queue.writer = (event: Record<string, unknown>) => {
+    res.write(`data: ${JSON.stringify(event)}\n\n`)
+    if (event.type === 'complete' || event.type === 'error') {
+      cleanupQueue(streamId)
+      res.end()
+    }
+  }
 
   req.on('close', () => {
-    clearInterval(interval)
+    queue.writer = undefined
   })
 })
 
 // 简单的内存事件队列（hackathon 用内存够了）
-interface EventQueue { events: Array<Record<string, unknown>> }
+// events: SSE 连接建立前积压的事件；writer: 连接建立后立即 flush
+interface EventQueue {
+  events: Array<Record<string, unknown>>
+  writer?: (event: Record<string, unknown>) => void
+}
 const eventQueues = new Map<string, EventQueue>()
 
 function getEventQueue(streamId: string): EventQueue {
@@ -200,7 +207,13 @@ function getEventQueue(streamId: string): EventQueue {
 
 export function pushEvent(streamId: string, event: object) {
   const queue = eventQueues.get(streamId)
-  if (queue) queue.events.push(event as Record<string, unknown>)
+  if (!queue) return
+  const e = event as Record<string, unknown>
+  if (queue.writer) {
+    queue.writer(e)   // SSE 已连接：直接实时写入
+  } else {
+    queue.events.push(e)  // SSE 尚未连接：先积压，连接建立时 flush
+  }
 }
 
 function cleanupQueue(streamId: string) {

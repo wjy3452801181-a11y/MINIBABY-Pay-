@@ -38,13 +38,27 @@ export async function runIntentLoop(
       system: SYSTEM_PROMPT,
     })
 
-    // 流式监听：tool_use 开始时立即推送 ⟳ 事件
+    // 流式监听：
+    // - message_start：API 连通的第一帧，立即推送当前步骤的 running 信号（降低首事件延迟）
+    // - content_block_start + tool_use：Claude 实际决定调用哪个工具时推送精确 tool_start
+    let messageStartSent = false
     for await (const event of stream) {
+      if (!messageStartSent && event.type === 'message_start') {
+        messageStartSent = true
+        // iter=0 时 Claude 总是先调 parse_intent；后续轮次不在此预推（工具名不确定）
+        if (iter === 0) {
+          onEvent({ type: 'tool_start', name: 'parse_intent', tool: 'parse_intent' })
+        }
+      }
       if (
         event.type === 'content_block_start' &&
         event.content_block.type === 'tool_use'
       ) {
-        onEvent({ type: 'tool_start', name: event.content_block.name, tool: event.content_block.name })
+        const name = event.content_block.name
+        // iter=0 的 parse_intent 已在 message_start 推过，跳过避免重复
+        if (!(iter === 0 && name === 'parse_intent')) {
+          onEvent({ type: 'tool_start', name, tool: name })
+        }
       }
     }
 
