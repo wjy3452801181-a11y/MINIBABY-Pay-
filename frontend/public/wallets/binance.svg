@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" rx="40" fill="#0B0E11"/>
+  <g fill="#F0B90B" transform="translate(100,100)">
+    <!-- top small diamond -->
+    <polygon points="0,-58 18,-40 0,-22 -18,-40"/>
+    <!-- bottom small diamond -->
+    <polygon points="0,22 18,40 0,58 -18,40"/>
+    <!-- left small diamond -->
+    <polygon points="-58,0 -40,-18 -22,0 -40,18"/>
+    <!-- right small diamond -->
+    <polygon points="22,0 40,-18 58,0 40,18"/>
+    <!-- center large diamond -->
+    <polygon points="0,-36 36,0 0,36 -36,0"/>
+    <!-- hollow cutout -->
+    <polygon points="0,-18 18,0 0,18 -18,0" fill="#0B0E11"/>
+  </g>
+</svg>

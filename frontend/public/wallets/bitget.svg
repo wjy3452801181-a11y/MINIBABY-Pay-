@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" rx="40" fill="#0D1F1F"/>
+  <!-- Bitget chevron ">" -->
+  <polyline points="65,55 125,100 65,145" stroke="#00FFFF" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
