@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { runIntentLoop } from '../lib/claude'
 import { getDb } from '../lib/db'
 import { parseIntent } from '../tools/parseIntent'
-import { checkCompliance } from '../tools/checkCompliance'
+import { checkCompliance, warmupRateIfNeeded } from '../tools/checkCompliance'
 import { buildHspMessage } from '../tools/buildHspMessage'
 import { scheduleRecurring } from '../tools/scheduleRecurring'
 import { record } from '../lib/metrics'
@@ -120,6 +120,10 @@ intentRouter.post('/', (req: Request, res: Response) => {
   const enrichedMessage = sender
     ? `${message}\n[sender_address: ${sender}]`
     : message
+
+  // 跨境支付汇率预热：检测到 CNY/HKD/EUR 关键词时，立即发起 CoinGecko 请求
+  // 与 parse_intent 并行执行，check_compliance 调用时命中缓存，节省 ~200-500ms
+  warmupRateIfNeeded(message)
 
   // 存储事件队列供 SSE 端点消费
   getEventQueue(streamId)  // 初始化队列

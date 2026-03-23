@@ -32,7 +32,7 @@ async function getToUsdcRate(currency: string): Promise<{ rate: number; source: 
   try {
     const res = await fetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=usd-coin&vs_currencies=${cfg.coingeckoVs}`,
-      { signal: AbortSignal.timeout(5000) },
+      { signal: AbortSignal.timeout(3000) },
     )
     if (!res.ok) throw new Error(`CoinGecko ${res.status}`)
     const data = await res.json() as { 'usd-coin': Record<string, number> }
@@ -72,6 +72,26 @@ const RISK_WARNINGS: {
     message: '检测到销毁地址，拒绝转账',
   },
 ]
+
+// 跨境关键词 → 对应币种，用于 POST /api/intent 收到请求时预热汇率缓存
+const CROSS_BORDER_KEYWORDS: Array<{ pattern: RegExp; currency: string }> = [
+  { pattern: /人民币|CNY|RMB|元/i, currency: 'CNY' },
+  { pattern: /港币|港元|HKD/i,     currency: 'HKD' },
+  { pattern: /欧元|EUR/i,          currency: 'EUR' },
+]
+
+/**
+ * 根据用户原始消息预热汇率缓存（fire-and-forget）
+ * 在 parse_intent 执行期间并行完成 CoinGecko 请求，check_compliance 调用时命中缓存
+ */
+export function warmupRateIfNeeded(message: string): void {
+  for (const { pattern, currency } of CROSS_BORDER_KEYWORDS) {
+    if (pattern.test(message)) {
+      getToUsdcRate(currency).catch(() => {}) // fire-and-forget，失败无影响
+      break // 一条消息最多一种跨境币种
+    }
+  }
+}
 
 export async function checkCompliance(
   input: Record<string, unknown>,
