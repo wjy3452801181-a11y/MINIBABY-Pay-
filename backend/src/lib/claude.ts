@@ -10,6 +10,28 @@ export function getClaudeClient(): Anthropic {
   return _client
 }
 
+/**
+ * 预热 Claude HTTP/2 连接：发一个最小请求建立 TLS + HTTP/2 会话
+ * 后续真实请求复用连接，减少首次调用延迟
+ */
+export async function warmupClaude(): Promise<{ latencyMs: number }> {
+  const start = Date.now()
+  try {
+    const claude = getClaudeClient()
+    await claude.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1,
+      messages: [{ role: 'user', content: 'hi' }],
+    })
+    const latencyMs = Date.now() - start
+    console.log(`[warmup] Claude OK — ${latencyMs}ms`)
+    return { latencyMs }
+  } catch (err) {
+    console.warn(`[warmup] Claude failed — ${(err as Error).message}`)
+    return { latencyMs: Date.now() - start }
+  }
+}
+
 // 所有工具的统一返回类型
 export type ToolResult =
   | { success: true;  [key: string]: unknown }
