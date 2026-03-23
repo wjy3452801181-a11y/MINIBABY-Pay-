@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import type { PaymentRecord, RecurringRule } from '../lib/types'
 import { useLocale } from '../lib/LocaleContext'
 
@@ -133,7 +133,7 @@ export default function Dashboard({ walletAddress, refreshTrigger }: DashboardPr
           <RulesList rules={rules} onRun={fetchAll} locale={locale} />
         </div>
         <div className={activeTab === 'monitor' ? '' : 'hidden'}>
-          <MonitorTab />
+          <MonitorTab active={activeTab === 'monitor'} />
         </div>
       </div>
     </div>
@@ -400,10 +400,11 @@ function RulesList({ rules, onRun, locale }: { rules: RecurringRule[]; onRun: ()
   )
 }
 
-function MonitorTab() {
+function MonitorTab({ active }: { active: boolean }) {
   const { t } = useLocale()
   const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null)
   const [loading, setLoading] = useState(false)
+  const hasActivated = useRef(false)
 
   const fetchMetrics = useCallback(async () => {
     setLoading(true)
@@ -415,10 +416,15 @@ function MonitorTab() {
   }, [])
 
   useEffect(() => {
-    fetchMetrics()
+    if (!active) return
+    // 首次激活才开始 fetch + 轮询，之后 active 变化不重启 interval
+    if (!hasActivated.current) {
+      hasActivated.current = true
+      fetchMetrics()
+    }
     const interval = setInterval(fetchMetrics, 30_000)
     return () => clearInterval(interval)
-  }, [fetchMetrics])
+  }, [active, fetchMetrics])
 
   const fmtUptime = (secs: number) => {
     const h = Math.floor(secs / 3600)
