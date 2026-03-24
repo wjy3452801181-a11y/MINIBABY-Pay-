@@ -42,6 +42,11 @@ export default function Home() {
     }
   }, [t])
 
+  // 页面加载时预热后端：建立 RPC provider 缓存 + Claude HTTP/2 连接
+  useEffect(() => {
+    fetch('/api/warmup', { method: 'POST' }).catch(() => {})
+  }, [])
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, state.pipeline])
