@@ -45,7 +45,11 @@ html, body {
   flex-shrink: 0;
 }
 
-/* 滚动条样式 */
+/* iOS safe area — 底部 Tab Bar 不被 Home Indicator 遮挡 */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }

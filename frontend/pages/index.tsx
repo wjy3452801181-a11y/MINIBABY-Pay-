@@ -199,29 +199,37 @@ export default function Home() {
 
         {/* ── 移动端单栏 + 底部 Tab Bar ── */}
         <div className="flex sm:hidden flex-1 flex-col overflow-hidden">
-          {/* 内容区域 */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {mobileTab === 'chat' && chatContent}
-            {mobileTab === 'pipeline' && (
-              <div className="flex-1 overflow-y-auto">
-                <Pipeline steps={state.pipeline} isRunning={state.isRunning} hspReqTx={state.hspReqTx} hspConfTx={state.hspConfTx} />
-              </div>
-            )}
-            {mobileTab === 'dashboard' && (
-              <div className="flex-1 overflow-y-auto p-4">
-                <Dashboard walletAddress={walletAddress} refreshTrigger={dashRefresh} />
-              </div>
-            )}
+          {/* 内容区域：三个 tab 同时保持 DOM，hidden 切换避免重复 mount/fetch */}
+          <div className="flex-1 overflow-hidden relative">
+            <div className={`absolute inset-0 flex flex-col overflow-hidden ${mobileTab === 'chat' ? '' : 'hidden'}`}>
+              {chatContent}
+            </div>
+            <div className={`absolute inset-0 overflow-y-auto ${mobileTab === 'pipeline' ? '' : 'hidden'}`}>
+              <Pipeline steps={state.pipeline} isRunning={state.isRunning} hspReqTx={state.hspReqTx} hspConfTx={state.hspConfTx} />
+              {/* 流程完成时显示「查看确认」按钮 */}
+              {state.isComplete && state.hspMessage && (
+                <div className="px-4 pb-4">
+                  <button
+                    onClick={() => setMobileTab('chat')}
+                    className="w-full py-3 rounded-xl bg-hsk-blue text-white text-sm font-semibold"
+                  >
+                    {locale === 'zh' ? '查看支付确认 →' : 'View Confirmation →'}
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className={`absolute inset-0 overflow-y-auto p-4 ${mobileTab === 'dashboard' ? '' : 'hidden'}`}>
+              <Dashboard walletAddress={walletAddress} refreshTrigger={dashRefresh} />
+            </div>
           </div>
 
-          {/* 底部 Tab Bar */}
-          <div className="flex-shrink-0 flex border-t border-hsk-border bg-hsk-surface/80 backdrop-blur">
+          {/* 底部 Tab Bar — pb-safe 适配 iOS Home Indicator */}
+          <div className="flex-shrink-0 flex border-t border-hsk-border bg-hsk-surface/80 backdrop-blur pb-safe">
             <MobileTabBtn
               active={mobileTab === 'chat'}
               onClick={() => setMobileTab('chat')}
               icon="💬"
               label={locale === 'zh' ? '对话' : 'Chat'}
-              badge={state.isRunning ? undefined : undefined}
             />
             <MobileTabBtn
               active={mobileTab === 'pipeline'}
